@@ -1,9 +1,34 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from pathlib import Path
+from threading import Thread
 import re
+import time
+
+
+class WebWorker(Thread):
+    # Worker to crawl workshop page and find modID
+    def __init__(self, workshopIDs):
+        Thread.__init__(self)
+        self.workshopIDs = workshopIDs
+
+    def run(self):
+        # For each workshop item, find the mod ID
+        for id in self.workshopIDs:
+            modPage = urlopen(
+                "https://steamcommunity.com/sharedfiles/filedetails/?id={0}".format(id))
+            modHTML = modPage.read().decode("utf-8")
+            modSoup = BeautifulSoup(modHTML, "html.parser")
+            modPageText = modSoup.get_text()
+            if "Mod ID:" in modPageText:
+                modID = re.findall("(?<=Mod ID: )(.*)(?=\s)", modPageText)[0]
+                if modID:
+                    print(modID)
+                    modIDs.append(modID)
+
 
 print("========== Overwriting mod list ==========")
+start = time.time()
 
 # URL of workshop collection
 url = "https://steamcommunity.com/sharedfiles/filedetails/?id=2861142922"
@@ -28,22 +53,21 @@ for item in collectionItems:
 
 formattedWorkshopIDs = ';'.join(workshopIDs)
 
-# For each workshop item, find the mod ID
+# Multi-threading go better performance
+numThreads = 1
+threads = []
 modIDs = []
-for id in workshopIDs:
-    modPage = urlopen(
-        "https://steamcommunity.com/sharedfiles/filedetails/?id={0}".format(id))
-    modHTML = modPage.read().decode("utf-8")
-    modSoup = BeautifulSoup(modHTML, "html.parser")
-    modPageText = modSoup.get_text()
-    if "Mod ID:" in modPageText:
-        modID = re.findall("(?<=Mod ID: )(.*)(?=\s)", modPageText)[0]
-        if modID:
-            print(modID)
-            modIDs.append(modID)
+
+# Start new Threads
+for i in range(0, len(workshopIDs), numThreads):
+    worker = WebWorker(workshopIDs[i:i + numThreads])
+    threads.append(worker)
+    worker.start()
+
+for t in threads:
+    t.join()
 
 formattedModIDs = ';'.join(modIDs)
-
 print()
 
 # Write to servertest.ini
@@ -63,5 +87,6 @@ with p.open('w') as f:
     f.writelines(data)
 
 print("Finished writing to servertest.ini ✅")
-
+end = time.time()
+print(end-start)
 print("=========================================")
