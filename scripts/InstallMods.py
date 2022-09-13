@@ -54,7 +54,7 @@ for item in collectionItems:
 formattedWorkshopIDs = ';'.join(workshopIDs)
 
 # Multi-threading go better performance
-numThreads = 1
+numThreads = 1  # for some reason only 1 thread is fastest.
 threads = []
 modIDs = []
 
