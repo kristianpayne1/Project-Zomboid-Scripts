@@ -6,25 +6,42 @@ import re
 import time
 
 
-def getModID(workshopID):
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+def getModIDs(workshopID):
     # For workshop item, find the mod ID
     modPage = urlopen(
         "https://steamcommunity.com/sharedfiles/filedetails/?id={0}".format(workshopID))
     modHTML = modPage.read().decode("utf-8")
     modSoup = BeautifulSoup(modHTML, "html.parser")
     modPageText = modSoup.get_text()
-    if "Mod ID:" in modPageText:
-        modID = re.findall("(?<=Mod ID: )(.*)(?=\s)", modPageText)[0]
-        if modID:
+    if "Mod ID:" in modPageText or "ModID:" in modPageText:
+        modIDs = re.findall(
+            r'(?:(?<=Mod ID: )|(?<=ModID: ))(.*?)(?=\W)', modPageText)
+        for modID in modIDs:
             print(modID)
-            return modID
+        return modIDs
+    else:
+        print(bcolors.FAIL +
+              "Couldn't find Mod ID for workshop item: {}".format(workshopID) + bcolors.ENDC)
+        return []
 
 
 if __name__ == "__main__":
-    print("========== Overwriting mod list ==========")
+    print(bcolors.HEADER + "========== Overwriting mod list ==========" + bcolors.ENDC)
 
     # URL of workshop collection
-    url = "https://steamcommunity.com/sharedfiles/filedetails/?id=2861142922"
+    url = "https://steamcommunity.com/sharedfiles/filedetails/?id=2847278602"
 
     # Read collection HTML
     collectionPage = urlopen(url)
@@ -49,8 +66,10 @@ if __name__ == "__main__":
     # Multi-threading go zoom 🏎️💨
     start = time.time()
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        modIDs = list(executor.map(getModID, workshopIDs))
+        results = executor.map(
+            getModIDs, workshopIDs)
 
+    modIDs = [item for sublist in list(results) for item in sublist]
     formattedModIDs = ';'.join(modIDs)
     print()
 
@@ -72,5 +91,5 @@ if __name__ == "__main__":
     with p.open('w') as f:
         f.writelines(data)
 
-    print("Finished writing to servertest.ini ✅")
-    print("=========================================")
+    print(bcolors.OKGREEN + "Finished writing to servertest.ini ✅" + bcolors.ENDC)
+    print(bcolors.HEADER + "=========================================" + bcolors.ENDC)
