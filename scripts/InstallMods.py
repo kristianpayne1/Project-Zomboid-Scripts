@@ -4,6 +4,10 @@ from bs4 import BeautifulSoup
 from pathlib import Path
 import re
 import time
+import sys
+
+# URL of workshop collection. ADD URL HERE! i.e https://steamcommunity.com/sharedfiles/filedetails/?id=[collectionID]
+url = ""
 
 
 class bcolors:
@@ -38,10 +42,11 @@ def getModIDs(workshopID):
 
 
 if __name__ == "__main__":
-    print(bcolors.HEADER + "========== Overwriting mod list ==========" + bcolors.ENDC)
+    if len(url) == 0:
+        sys.exit(
+            bcolors.FAIL + "Collection URL empty! Please edit the file and provide the URL" + bcolors.ENDC)
 
-    # URL of workshop collection
-    url = "https://steamcommunity.com/sharedfiles/filedetails/?id=2847278602"
+    print(bcolors.HEADER + "========== Overwriting mod list ==========" + bcolors.ENDC)
 
     # Read collection HTML
     collectionPage = urlopen(url)
