@@ -11,8 +11,3 @@ To Install beautifulsoup4 run this command line:
 ```
 python3 -m pip install beautifulsoup4
 ```
-
-## MultiProcess_InstallMods.py (*Experimental*)
-
-Same as InstallMods.py but utilizes multi-processing instead of multi-threading. \
-While fast, a little slower on average than single thread InstallMods.py 🤷
