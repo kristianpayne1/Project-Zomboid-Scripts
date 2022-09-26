@@ -7,7 +7,8 @@ import time
 import sys
 
 # URL of workshop collection. ADD URL HERE! i.e https://steamcommunity.com/sharedfiles/filedetails/?id=[collectionID]
-url = "https://steamcommunity.com/sharedfiles/filedetails/?id=2847278602"
+url = ""
+# Filepath to servertest.ini. Currently assumes in the same directory
 serverTestFilePath = Path(__file__).with_name('servertest.ini')
 
 
