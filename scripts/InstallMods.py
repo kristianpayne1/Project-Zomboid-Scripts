@@ -85,21 +85,38 @@ if __name__ == "__main__":
     print()
 
     # Write to servertest.ini
-    with serverTestFilePath.open('r') as file:
+    with serverTestFilePath.open('r+') as file:
         data = file.readlines()
+        try:
+            workshopIDIndex = [i for i, s in enumerate(
+                data) if 'WorkshopItems=' in s and not '#' in s][0]
+        except IndexError:
+            workshopIDIndex = len(data)
+            print(bcolors.WARNING +
+                  "Failed to find line to write workshop items. Writing on new line instead!" + bcolors.ENDC)
 
-    workshopIDIndex = [i for i, s in enumerate(
-        data) if 'WorkshopItems=' in s and not '#' in s][0]
-    data[workshopIDIndex] = "WorkshopItems={}\n".format(
-        formattedWorkshopIDs)
-    print(data[workshopIDIndex])
+        if workshopIDIndex == len(data):
+            data.append("\nWorkshopItems={}\n".format(
+                formattedWorkshopIDs))
+        else:
+            data[workshopIDIndex] = "WorkshopItems={}\n".format(
+                formattedWorkshopIDs)
+        print(data[workshopIDIndex])
 
-    modIDIndex = [i for i, s in enumerate(
-        data) if 'Mods=' in s and not '#' in s][0]
-    data[modIDIndex] = "Mods={}\n".format(formattedModIDs)
-    print(data[modIDIndex])
+        try:
+            modIDIndex = [i for i, s in enumerate(
+                data) if 'Mods=' in s and not '#' in s][0]
+        except:
+            modIDIndex = len(data)
+            print(bcolors.WARNING +
+                  "Failed to find line to write mod items. Writing on new line instead!" + bcolors.ENDC)
 
-    with serverTestFilePath.open('w') as file:
+        if modIDIndex == len(data):
+            data.append("\nMods={}\n".format(formattedModIDs))
+        else:
+            data[modIDIndex] = "Mods={}\n".format(formattedModIDs)
+        print(data[modIDIndex])
+
         file.writelines(data)
 
     print(bcolors.OKGREEN + "Finished writing to servertest.ini ✅" + bcolors.ENDC)
