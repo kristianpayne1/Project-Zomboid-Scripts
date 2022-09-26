@@ -7,7 +7,8 @@ import time
 import sys
 
 # URL of workshop collection. ADD URL HERE! i.e https://steamcommunity.com/sharedfiles/filedetails/?id=[collectionID]
-url = ""
+url = "https://steamcommunity.com/sharedfiles/filedetails/?id=2847278602"
+serverTestFilePath = Path(__file__).with_name('servertest.ini')
 
 
 class bcolors:
@@ -46,6 +47,10 @@ if __name__ == "__main__":
         sys.exit(
             bcolors.FAIL + "Collection URL empty! Please edit the file and provide the URL" + bcolors.ENDC)
 
+    if serverTestFilePath.is_file() is False:
+        sys.exit(
+            bcolors.FAIL + "No servertest.ini file found! Make sure you have started your server at least once before and placed this script in the right directory (i.e. Zomboid/Server). " + bcolors.ENDC)
+
     print(bcolors.HEADER + "========== Overwriting mod list ==========" + bcolors.ENDC)
 
     # Read collection HTML
@@ -79,9 +84,8 @@ if __name__ == "__main__":
     print()
 
     # Write to servertest.ini
-    p = Path(__file__).with_name('servertest.ini')
-    with p.open('r') as f:
-        data = f.readlines()
+    with serverTestFilePath.open('r') as file:
+        data = file.readlines()
 
     workshopIDIndex = [i for i, s in enumerate(
         data) if 'WorkshopItems=' in s][1]
@@ -93,8 +97,8 @@ if __name__ == "__main__":
     data[modIDIndex] = "Mods={}\n".format(formattedModIDs)
     print(data[modIDIndex])
 
-    with p.open('w') as f:
-        f.writelines(data)
+    with serverTestFilePath.open('w') as file:
+        file.writelines(data)
 
     print(bcolors.OKGREEN + "Finished writing to servertest.ini ✅" + bcolors.ENDC)
     print(bcolors.HEADER + "=========================================" + bcolors.ENDC)
