@@ -88,12 +88,13 @@ if __name__ == "__main__":
         data = file.readlines()
 
     workshopIDIndex = [i for i, s in enumerate(
-        data) if 'WorkshopItems=' in s][1]
+        data) if 'WorkshopItems=' in s and not '#' in s][0]
     data[workshopIDIndex] = "WorkshopItems={}\n".format(
         formattedWorkshopIDs)
     print(data[workshopIDIndex])
 
-    modIDIndex = [i for i, s in enumerate(data) if 'Mods=' in s][0]
+    modIDIndex = [i for i, s in enumerate(
+        data) if 'Mods=' in s and not '#' in s][0]
     data[modIDIndex] = "Mods={}\n".format(formattedModIDs)
     print(data[modIDIndex])
 
