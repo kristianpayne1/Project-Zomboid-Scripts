@@ -1,18 +1,19 @@
 import concurrent.futures
-from urllib.request import urlopen
+import requests
+import argparse
+import configparser
 from bs4 import BeautifulSoup
 from pathlib import Path
 import re
 import time
-import sys
-
-# URL of workshop collection. ADD URL HERE! i.e https://steamcommunity.com/sharedfiles/filedetails/?id=[collectionID]
-url = ""
-# Filepath to servertest.ini. Currently assumes in the same directory
-serverTestFilePath = Path(__file__).with_name('servertest.ini')
 
 
-class bcolors:
+WORKSHOP_CONFIG_KEY = "WorkshopItems"
+MODS_CONFIG_KEY = "Mods"
+STEAM_WORKSHOP_TEMPLATE_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=%s"
+
+
+class BColors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKCYAN = '\033[96m'
@@ -24,46 +25,51 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
-def getModIDs(workshopID):
+def getModIDs(workshopID: str):
     # For workshop item, find the mod ID
-    modPage = urlopen(
-        "https://steamcommunity.com/sharedfiles/filedetails/?id={0}".format(workshopID))
-    modHTML = modPage.read().decode("utf-8")
+    modHTML = requests.get(STEAM_WORKSHOP_TEMPLATE_URL % workshopID).text
     modSoup = BeautifulSoup(modHTML, "html.parser")
     modPageText = modSoup.get_text()
     if "Mod ID:" in modPageText or "ModID:" in modPageText:
-        modIDs = re.findall(
-            r'(?:(?<=Mod ID: )|(?<=ModID: ))(.*?)(?=\W)', modPageText)
+        modIDs = re.findall(r'(?:(?<=Mod ID: )|(?<=ModID: ))(.*?)(?=\W)', modPageText)
         for modID in modIDs:
             print(modID)
         return modIDs
     else:
-        print(bcolors.FAIL +
-              "Couldn't find Mod ID for workshop item: {}".format(workshopID) + bcolors.ENDC)
+        print(BColors.FAIL + "Couldn't find Mod ID for workshop item: {}".format(workshopID) + BColors.ENDC)
         return []
 
 
 if __name__ == "__main__":
-    if len(url) == 0:
-        sys.exit(
-            bcolors.FAIL + "Collection URL empty! Please edit the file and provide the URL" + bcolors.ENDC)
+    parser = argparse.ArgumentParser("Project Zomboid mod installer")
+    parser.add_argument("url", type=str, help="Steam collection URL")
+    parser.add_argument("--server-file", type=Path, default=Path("./servertest.ini"), help="Path to servertest.ini (or server's ini config file)")
+    parser.add_argument('-p', "--print-only", default=False, action="store_const", const=True, help="Don't write to server config file and print mod IDs instead")
 
-    if serverTestFilePath.is_file() is False:
-        sys.exit(
-            bcolors.FAIL + "No servertest.ini file found! Make sure you have started your server at least once before and placed this script in the right directory (i.e. Zomboid/Server). " + bcolors.ENDC)
+    args = parser.parse_args()
 
-    print(bcolors.HEADER + "========== Overwriting mod list ==========" + bcolors.ENDC)
+    print_only: bool = args.print_only
+
+    collection_url: str = args.url
+    if collection_url == "":
+        print(BColors.FAIL + "Collection URL empty! Please the collection URL" + BColors.ENDC)
+        exit()
+
+    server_config: Path = args.server_file.expanduser().absolute()
+    if not server_config.exists() and not print_only:
+        print(BColors.FAIL + f"No {server_config} file found! Make sure you have started your server at least once before and specified the path to the config" + BColors.ENDC)
+        exit()
+
+    print(BColors.HEADER + "========== Overwriting mod list ==========" + BColors.ENDC)
 
     # Read collection HTML
-    collectionPage = urlopen(url)
-    collectionHTML = collectionPage.read().decode("utf-8")
+    collectionHTML = requests.get(collection_url).text
     collectionSoup = BeautifulSoup(collectionHTML, "html.parser")
 
     # Find items
     collectionItems = collectionSoup.find_all("div", "collectionItem")
 
-    print("{0} workshop items found:".format(
-        len(collectionItems)))
+    print(f"{len(collectionItems)} workshop items found:")
 
     # Extract IDs and format to semi-colon seperated string
     workshopIDs = []
@@ -77,47 +83,31 @@ if __name__ == "__main__":
     # Multi-threading go zoom 🏎️💨
     start = time.time()
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = executor.map(
-            getModIDs, workshopIDs)
+        results = executor.map(getModIDs, workshopIDs)
 
     modIDs = [item for sublist in list(results) for item in sublist]
     formattedModIDs = ';'.join(modIDs)
     print()
 
+    if print_only:
+        print(f"Workshop IDs: {formattedWorkshopIDs}")
+        print(f"Mod IDs: {formattedModIDs}")
+        exit()
+
     # Write to servertest.ini
-    with serverTestFilePath.open('r+') as file:
-        data = file.readlines()
-        try:
-            workshopIDIndex = [i for i, s in enumerate(
-                data) if 'WorkshopItems=' in s and not '#' in s][0]
-        except IndexError:
-            workshopIDIndex = len(data)
-            print(bcolors.WARNING +
-                  "Failed to find line to write workshop items. Writing on new line instead!" + bcolors.ENDC)
+    config = configparser.ConfigParser()
+    config.read(server_config)
 
-        if workshopIDIndex == len(data):
-            data.append("\nWorkshopItems={}\n".format(
-                formattedWorkshopIDs))
-        else:
-            data[workshopIDIndex] = "WorkshopItems={}\n".format(
-                formattedWorkshopIDs)
-        print(data[workshopIDIndex])
+    if WORKSHOP_CONFIG_KEY not in config:
+        print(BColors.WARNING + "Failed to workshop items line in config, adding it" + BColors.ENDC)
+    config[WORKSHOP_CONFIG_KEY] = formattedWorkshopIDs
 
-        try:
-            modIDIndex = [i for i, s in enumerate(
-                data) if 'Mods=' in s and not '#' in s][0]
-        except:
-            modIDIndex = len(data)
-            print(bcolors.WARNING +
-                  "Failed to find line to write mod items. Writing on new line instead!" + bcolors.ENDC)
+    if MODS_CONFIG_KEY not in config:
+        print(BColors.WARNING + "Failed to mods line in config, adding it" + BColors.ENDC)
+    config[MODS_CONFIG_KEY] = formattedModIDs
 
-        if modIDIndex == len(data):
-            data.append("\nMods={}\n".format(formattedModIDs))
-        else:
-            data[modIDIndex] = "Mods={}\n".format(formattedModIDs)
-        print(data[modIDIndex])
+    with server_config.open('w') as fh:
+        fh.write(config)
 
-        file.writelines(data)
-
-    print(bcolors.OKGREEN + "Finished writing to servertest.ini ✅" + bcolors.ENDC)
-    print(bcolors.HEADER + "=========================================" + bcolors.ENDC)
+    print(BColors.OKGREEN + f"Finished writing to {server_config} ✅" + BColors.ENDC)
+    print(BColors.HEADER + "=========================================" + BColors.ENDC)
