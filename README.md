@@ -9,5 +9,5 @@ Requires Python version 3 and beautifulsoup4 library installed. Must be placed w
 
 To Install beautifulsoup4 run this command line:
 ```
-python3 -m pip install beautifulsoup4
+python3 -m pip install beautifulsoup4 requests
 ```
