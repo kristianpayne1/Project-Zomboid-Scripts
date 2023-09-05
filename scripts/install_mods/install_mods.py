@@ -40,6 +40,8 @@ def replace_key_or_add(key: str, replacement: str, s: str) -> str:
     return re.sub(pattern, replacement, s)
 
 def main(collection_url: str, server_config: Path = Path("./servertest.ini"), print_only: bool = False): 
+    server_config = server_config.expanduser().absolute()
+    
     # Exception handling
     if collection_url == "":
         raise Exception(BColors.FAIL + "\nCollection URL empty! Please the collection URL" + BColors.ENDC)
@@ -106,7 +108,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     collection_url: str = args.url
-    server_config: Path = args.server_file.expanduser().absolute()
+    server_config: Path = args.server_file
     print_only: bool = args.print_only
 
     main(collection_url, server_config, print_only)

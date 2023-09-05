@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from scripts.installmods.install_mods import main
+from scripts.install_mods.install_mods import main
 
 STEAM_URL = os.environ['STEAM_URL']
 
