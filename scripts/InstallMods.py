@@ -1,7 +1,8 @@
 import concurrent.futures
+from typing import List
+
 import requests
 import argparse
-import configparser
 from bs4 import BeautifulSoup
 from pathlib import Path
 import re
@@ -25,19 +26,27 @@ class BColors:
     UNDERLINE = '\033[4m'
 
 
-def getModIDs(workshopID: str):
+def get_mod_ids(workshop_id: str):
     # For workshop item, find the mod ID
-    modHTML = requests.get(STEAM_WORKSHOP_TEMPLATE_URL % workshopID).text
-    modSoup = BeautifulSoup(modHTML, "html.parser")
-    modPageText = modSoup.get_text()
-    if "Mod ID:" in modPageText or "ModID:" in modPageText:
-        modIDs = re.findall(r'(?:(?<=Mod ID: )|(?<=ModID: ))(.*?)(?=\W)', modPageText)
+    mod_html = requests.get(STEAM_WORKSHOP_TEMPLATE_URL % workshop_id).text
+    mod_soup = BeautifulSoup(mod_html, "html.parser")
+    mod_page_text = mod_soup.get_text()
+    if "Mod ID:" in mod_page_text or "ModID:" in mod_page_text:
+        modIDs = re.findall(r'(?:(?<=Mod ID: )|(?<=ModID: ))(.*?)(?=\W)', mod_page_text)
         for modID in modIDs:
             print(modID)
         return modIDs
     else:
-        print(BColors.FAIL + "Couldn't find Mod ID for workshop item: {}".format(workshopID) + BColors.ENDC)
+        print(BColors.FAIL + "Couldn't find Mod ID for workshop item: {}".format(workshop_id) + BColors.ENDC)
         return []
+
+
+def replace_key_or_add(key: str, replacement: str, s: str) -> str:
+    if key not in s:
+        return s + '\n' + replacement
+
+    pattern = f"\b{key}[^\b]*\b"
+    return re.sub(pattern, replacement, s)
 
 
 if __name__ == "__main__":
@@ -79,14 +88,17 @@ if __name__ == "__main__":
             workshopIDs.append(id)
 
     formattedWorkshopIDs = ';'.join(workshopIDs)
+    workshop_line = f"{WORKSHOP_CONFIG_KEY}={formattedWorkshopIDs}"
 
     # Multi-threading go zoom 🏎️💨
     start = time.time()
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = executor.map(getModIDs, workshopIDs)
+        results = executor.map(get_mod_ids, workshopIDs)
 
     modIDs = [item for sublist in list(results) for item in sublist]
     formattedModIDs = ';'.join(modIDs)
+    mods_line = f"{MODS_CONFIG_KEY}={formattedModIDs}"
+
     print()
 
     if print_only:
@@ -95,19 +107,14 @@ if __name__ == "__main__":
         exit()
 
     # Write to servertest.ini
-    config = configparser.ConfigParser()
-    config.read(server_config)
+    with server_config.open('r+') as file:
+        file_string: str = file.read()
 
-    if WORKSHOP_CONFIG_KEY not in config:
-        print(BColors.WARNING + "Failed to workshop items line in config, adding it" + BColors.ENDC)
-    config[WORKSHOP_CONFIG_KEY] = formattedWorkshopIDs
+    file_string = replace_key_or_add(WORKSHOP_CONFIG_KEY, workshop_line, file_string)
+    file_string = replace_key_or_add(MODS_CONFIG_KEY, mods_line, file_string)
 
-    if MODS_CONFIG_KEY not in config:
-        print(BColors.WARNING + "Failed to mods line in config, adding it" + BColors.ENDC)
-    config[MODS_CONFIG_KEY] = formattedModIDs
-
-    with server_config.open('w') as fh:
-        fh.write(config)
+    with server_config.open('w') as file:
+        file.write(file_string)
 
     print(BColors.OKGREEN + f"Finished writing to {server_config} ✅" + BColors.ENDC)
     print(BColors.HEADER + "=========================================" + BColors.ENDC)
