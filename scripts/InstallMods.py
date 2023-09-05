@@ -1,13 +1,9 @@
 import concurrent.futures
-from typing import List
-
 import requests
 import argparse
 from bs4 import BeautifulSoup
 from pathlib import Path
 import re
-import time
-
 
 WORKSHOP_CONFIG_KEY = "WorkshopItems"
 MODS_CONFIG_KEY = "Mods"
@@ -16,14 +12,9 @@ STEAM_WORKSHOP_TEMPLATE_URL = "https://steamcommunity.com/sharedfiles/filedetail
 
 class BColors:
     HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
     OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
     FAIL = '\033[91m'
     ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
 
 def get_mod_ids(workshop_id: str):
@@ -48,28 +39,16 @@ def replace_key_or_add(key: str, replacement: str, s: str) -> str:
     pattern = f"\b{key}[^\b]*\b"
     return re.sub(pattern, replacement, s)
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Project Zomboid mod installer")
-    parser.add_argument("url", type=str, help="Steam collection URL")
-    parser.add_argument("--server-file", type=Path, default=Path("./servertest.ini"), help="Path to servertest.ini (or server's ini config file)")
-    parser.add_argument('-p', "--print-only", default=False, action="store_const", const=True, help="Don't write to server config file and print mod IDs instead")
-
-    args = parser.parse_args()
-
-    print_only: bool = args.print_only
-
-    collection_url: str = args.url
+def main(collection_url: str, server_config: Path = Path("./servertest.ini"), print_only: bool = False): 
+    # Exception handling
     if collection_url == "":
-        print(BColors.FAIL + "Collection URL empty! Please the collection URL" + BColors.ENDC)
-        exit()
+        raise Exception(BColors.FAIL + "\nCollection URL empty! Please the collection URL" + BColors.ENDC)
 
-    server_config: Path = args.server_file.expanduser().absolute()
-    if not server_config.exists() and not print_only:
-        print(BColors.FAIL + f"No {server_config} file found! Make sure you have started your server at least once before and specified the path to the config" + BColors.ENDC)
-        exit()
+    if not server_config.exists():
+        raise Exception(BColors.FAIL + f"\nNo {server_config} file found! Make sure you have started your server at least once before and specified the path to the config" + BColors.ENDC)
 
-    print(BColors.HEADER + "========== Overwriting mod list ==========" + BColors.ENDC)
+    if not print_only: 
+        print(BColors.HEADER + "========== Overwriting mod list ==========" + BColors.ENDC)
 
     # Read collection HTML
     collectionHTML = requests.get(collection_url).text
@@ -91,7 +70,6 @@ if __name__ == "__main__":
     workshop_line = f"{WORKSHOP_CONFIG_KEY}={formattedWorkshopIDs}"
 
     # Multi-threading go zoom 🏎️💨
-    start = time.time()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         results = executor.map(get_mod_ids, workshopIDs)
 
@@ -118,3 +96,17 @@ if __name__ == "__main__":
 
     print(BColors.OKGREEN + f"Finished writing to {server_config} ✅" + BColors.ENDC)
     print(BColors.HEADER + "=========================================" + BColors.ENDC)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("Project Zomboid mod installer")
+    parser.add_argument("url", type=str, help="Steam collection URL")
+    parser.add_argument("--server-file", type=Path, default=Path("./servertest.ini"), help="Path to servertest.ini (or server's ini config file)")
+    parser.add_argument('-p', "--print-only", default=False, action="store_const", const=True, help="Don't write to server config file and print mod IDs instead")
+
+    args = parser.parse_args()
+
+    collection_url: str = args.url
+    server_config: Path = args.server_file.expanduser().absolute()
+    print_only: bool = args.print_only
+
+    main(collection_url, server_config, print_only)

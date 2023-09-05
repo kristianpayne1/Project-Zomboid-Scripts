@@ -1,1 +1,4 @@
 scripts/servertest.ini
+_pycache__/
+.pytest_cache/
+*.py[cod]
